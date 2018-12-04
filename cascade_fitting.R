@@ -15,13 +15,7 @@
 
 # setup directories and file names
 project_parent_dir <- getwd()
-
-message(project_parent_dir)
-
 project_data_dir <- file.path(project_parent_dir, "data")
-
-message(project_data_dir)
-
 pTET_data_filepath <- file.path(project_data_dir, "pTET.dat")
 pBAD_data_filepath <- file.path(project_data_dir, "pBAD.dat")
 pBAD_pTET_data_filepath <- file.path(project_data_dir, "pBAD_pTET.dat")
@@ -57,21 +51,25 @@ n_aTc = 4
 tetR_sigmoid <- y ~ a + b / (1 + (tetR_const / ((1 + (aTc / k_aTc) ^ n_aTc) * k)) ^ n)
 
 # create empty zero matrix to populate the parameters below
-pTET_parameter <- matrix(0, nrow=4, ncol=(ncol(pTET_mat) - 1))
+pTET_parameter <- matrix(0, nrow=4, ncol=(ncol(pTET_mat) - 1)) # (4, 18)
+
+# create empty zero matrix to populate both actual and prediction
+pTET_pred <- matrix(0, nrow=nrow(pTET_mat), ncol=ncol(pTET_mat))
+pTET_pred[, 1] = pTET_mat[, 1]
 
 # fit the model and find parameters
 message("Fitting the model for pTET...")
 cat("\n")
 
 for (mutant in (2:ncol(pTET_mat))) {
-	message("Fitting mutant ", mutant)
+	message("Fitting mutant ", colnames(pTET_mat)[mutant])
 
 	# construct tetR_data to fit
-	ydat <- pTET_mat[, mutant]
-	tdat <- pTET_mat[, 1]
+	ydat <- pTET_mat[, mutant] # mutant, y-axis
+	tdat <- pTET_mat[, 1] # aTc, x-axis
 	tetR_data <- data.frame(y=ydat, aTc=tdat)
 
-	# find parameters to feed into nls
+	# define starting point and range of the parameters to feed into nls
 	a1 = min(ydat) / 10
 	a2 = min(ydat) * 2
 	b1 = max(ydat) / 100
@@ -92,7 +90,8 @@ for (mutant in (2:ncol(pTET_mat))) {
 	coefficients = coef(anlsb1)
 	pTET_parameter[, mutant-1] = coefficients # populate the coefficients to pTET_parameter
 
-	# print(anlsb1)
+	# save predictions
+	pTET_pred[, mutant] = tetR_data$predict
 
 	cat("\n")
 }
@@ -101,6 +100,9 @@ for (mutant in (2:ncol(pTET_mat))) {
 # In the matrix pTET_parameter, rows represent parameters and columns represent mutants.
 message("pTET_parameter:")
 print(pTET_parameter)
+
+# save the predictions
+write.table(pTET_pred, file=file.path(project_data_dir, "pTET_pred.txt"), row.names=FALSE, col.names=colnames(pTET_mat), sep="\t")
 
 
 ###########################
@@ -120,19 +122,23 @@ AraC_sigmoid <- y ~ a + b / (1 + (araC_const / ((1 + (Lara / k_Lara) ^ n_Lara) *
 # create empty zero matrix to populate the parameters below
 pBAD_parameter <- matrix(0, nrow=4, ncol=ncol(pBAD_mat) - 1)
 
+# create empty zero matrix to populate both actual and prediction
+pBAD_pred <- matrix(0, nrow=nrow(pBAD_mat), ncol=ncol(pBAD_mat))
+pBAD_pred[, 1] = pBAD_mat[, 1]
+
 # fit the model and find parameters
 message("Fitting the model for pBAD...")
 cat("\n")
 
 for (mutant in (2:ncol(pBAD_mat))) {
-	message("Fitting mutant ", mutant)
+	message("Fitting mutant ", colnames(pBAD_mat)[mutant])
 
 	# construct AraC_data to fit
-	ydat <- pBAD_mat[, mutant]
-	tdat <- pBAD_mat[, 1]
+	ydat <- pBAD_mat[, mutant] # mutant, y-axis
+	tdat <- pBAD_mat[, 1] # aTc, x-axis
 	AraC_data <- data.frame(y=ydat, Lara=tdat)
 
-	# find parameters to feed into nls
+	# define starting point and range of the parameters to feed into nls
 	a1 = min(ydat) / 10
 	a2 = min(ydat) * 2
 	b1 = max(ydat) / 100
@@ -151,9 +157,10 @@ for (mutant in (2:ncol(pBAD_mat))) {
 
 	# extract model coefficients
 	coefficients = coef(anlsb1)
-	pBAD_parameter[,mutant - 1] = coefficients # populate the coefficients to pBAD_parameter
+	pBAD_parameter[, mutant - 1] = coefficients # populate the coefficients to pBAD_parameter
 
-	# print(anlsb1)
+	# save predictions
+	pBAD_pred[, mutant] = AraC_data$predict
 
 	cat("\n")
 }
@@ -162,6 +169,9 @@ for (mutant in (2:ncol(pBAD_mat))) {
 # In the matrix pBAD_parameter, rows represent parameters and columns represent mutants.
 message("pBAD_parameter:")
 print(pBAD_parameter)
+
+# save the predictions
+write.table(pBAD_pred, file=file.path(project_data_dir, "pBAD_pred.txt"), row.names=FALSE, col.names=colnames(pBAD_mat), sep="\t")
 
 
 #####################
@@ -175,15 +185,15 @@ pBAD_mut_name_list = colnames(pBAD_mat)
 # create empty zero matrix to populate the final parameters
 final_mat <- matrix(0, nrow=nrow(pBAD_pTET_mat), ncol=6)
 colnames(final_mat) <- c("10ng/ml aTc (exp)",
-						 "0.1%ara + 10ng/ml aTc (exp)",
+						 "0.1% ara + 10ng/ml aTc (exp)",
 						 "100ng/mL aTc (exp)",
 						 "10ng/ml aTc (sim)",
-						 "0.1%ara + 10ng/ml aTc (sim)",
+						 "0.1% ara + 10ng/ml aTc (sim)",
 						 "100ng/mL aTc (sim)")
 
 # for each cascade
 for (cascade in (1:nrow(pBAD_pTET_mat))) {
-	# pTET
+	# pTET mutant
 	pTET_mut = pBAD_pTET_mat[cascade, 2]
 	pTET_idx = 0
 
@@ -195,7 +205,7 @@ for (cascade in (1:nrow(pBAD_pTET_mat))) {
 	if (pTET_idx == 0)
 		stop(sprintf("%s not found", pTET_mut))
 
-	# pBAD
+	# pBAD mutant
 	pBAD_mut = pBAD_pTET_mat[cascade, 1]
 	pBAD_idx = 0
 
@@ -218,6 +228,9 @@ for (cascade in (1:nrow(pBAD_pTET_mat))) {
 	k_pTET = pTET_parameter[3, pTET_idx]
 	n_pTET = pTET_parameter[4, pTET_idx]
 
+	######################
+	# AraC_sigmoid model #
+	######################
 	# model to predict the TetR where there is no L-arabinose.
 	# this model is the AraC_sigmoid model but we set Lara = 0,
 	# and the output is normalized by a linear factor constant k_convert_gfp_to_tetR
@@ -228,12 +241,15 @@ for (cascade in (1:nrow(pBAD_pTET_mat))) {
 	# and the output is normalized by a linear factor constant k_convert_gfp_to_tetR
 	tetR_0_1_ara = (a_pBAD + b_pBAD / (1 + (araC_const / ((1 + (0.1 / k_Lara) ^ n_Lara) * k_pBAD)) ^ n_pBAD)) / k_convert_gfp_to_tetR
 
+	######################
+	# tetR_sigmoid model #
+	######################
 	# model to predict gfp when there is 10ng/ml aTc.
 	# this model is the tetR_sigmoid model but we set aTc = 10,
 	# and we set tetR_const = tetR_zero_ara as tetR is the output of the first module (i.e. AraC_sigmoid model)
 	gfp_10ng_aTc = a_pTET + b_pTET / (1 + (tetR_zero_ara / ((1 + (10 / k_aTc) ^ n_aTc) * k_pTET)) ^ n_pTET)
 
-	# model to predict the gfp when there is 10ng aTc and 0.1% L-arabinose. (0.1% ara + 10ng/ml aTc)
+	# model to predict the gfp when there is 10ng/ml aTc and 0.1% L-arabinose. (0.1% ara + 10ng/ml aTc)
 	# this model is the tetR_sigmoid model but we set aTc = 10,
 	# and we set tetR_const = tetR_0_1_ara as tetR is the output of the first module (i.e. AraC_sigmoid model) when there is 0.1% L-arabinose,
 	gfp_0_1_Lara_10ng_aTc = a_pTET + b_pTET / (1 + (tetR_0_1_ara / ((1 + (10 / k_aTc) ^ n_aTc) * k_pTET)) ^ n_pTET)
@@ -254,6 +270,9 @@ for (cascade in (1:nrow(pBAD_pTET_mat))) {
 
 message("final_mat:")
 print(final_mat)
+
+# save the final matrix
+write.table(final_mat, file=file.path(project_data_dir, "final_mat.txt"), row.names=FALSE, sep="\t")
 
 # find correlation
 cor(final_mat[, 1], final_mat[, 4]) # 10ng/ml aTc
