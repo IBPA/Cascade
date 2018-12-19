@@ -9,6 +9,40 @@
 # To-do:
 #
 
+
+#####################################
+# setup python-like argument parser #
+#####################################
+
+# install.packages("argparse") # uncomment if not installed
+suppressPackageStartupMessages(library("argparse"))
+
+# create parser object
+parser <- ArgumentParser()
+
+# specify desired options
+parser$add_argument(
+	"-v",
+	"--verbose",
+	action="store_true",
+	default=FALSE,
+    help="Print all the intermediate steps")
+
+parser$add_argument(
+	"-k",
+	"--k_convert_gfp_to_tetR",
+	metavar="conversion_constant",
+	type="integer",
+	default=100,
+	help="Conversion constant to convert GFP to tetR")
+
+# get command line options
+args <- parser$parse_args()
+
+# set verbose variable as it'll be used a lot
+verbose = args$verbose
+
+
 #################
 # initial setup #
 #################
@@ -19,21 +53,25 @@ project_data_dir <- file.path(project_parent_dir, "data")
 pTET_data_filepath <- file.path(project_data_dir, "pTET.dat")
 pBAD_data_filepath <- file.path(project_data_dir, "pBAD.dat")
 pBAD_pTET_data_filepath <- file.path(project_data_dir, "pBAD_pTET.dat")
+classification_data_filepath <- file.path(project_data_dir, "classification.dat")
 
-message("pTET data filepath: ", pTET_data_filepath)
-message("pBAD data filepath: ", pBAD_data_filepath)
-message("pBAD_pTET data filepath: ", pBAD_pTET_data_filepath)
-cat("\n")
+if (verbose) message("pTET data filepath: ", pTET_data_filepath)
+if (verbose) message("pBAD data filepath: ", pBAD_data_filepath)
+if (verbose) message("pBAD_pTET data filepath: ", pBAD_pTET_data_filepath)
+if (verbose) message("classification data filepath: ", classification_data_filepath)
+if (verbose) cat("\n")
 
 # read data
 pTET_mat <- read.table(pTET_data_filepath, header=TRUE)
 pBAD_mat <- read.table(pBAD_data_filepath, header=TRUE)
 pBAD_pTET_mat <- read.table(pBAD_pTET_data_filepath, header=TRUE)
+classification_mat <- read.table(classification_data_filepath, header=TRUE)
 
-message(sprintf("pTET size: (%d, %d)", nrow(pTET_mat), ncol(pTET_mat)))
-message(sprintf("pBAD size: (%d, %d)", nrow(pBAD_mat), ncol(pBAD_mat)))
-message(sprintf("pBAD_pTET size: (%d, %d)", nrow(pBAD_pTET_mat), ncol(pBAD_pTET_mat)))
-cat("\n")
+if (verbose) message(sprintf("pTET size: (%d, %d)", nrow(pTET_mat), ncol(pTET_mat)))
+if (verbose) message(sprintf("pBAD size: (%d, %d)", nrow(pBAD_mat), ncol(pBAD_mat)))
+if (verbose) message(sprintf("pBAD_pTET size: (%d, %d)", nrow(pBAD_pTET_mat), ncol(pBAD_pTET_mat)))
+if (verbose) message(sprintf("classification size: (%d, %d)", nrow(classification_mat), ncol(classification_mat)))
+if (verbose) cat("\n")
 
 
 ###########################
@@ -58,11 +96,11 @@ pTET_pred <- matrix(0, nrow=nrow(pTET_mat), ncol=ncol(pTET_mat))
 pTET_pred[, 1] = pTET_mat[, 1]
 
 # fit the model and find parameters
-message("Fitting the model for pTET...")
-cat("\n")
+if (verbose) message("Fitting the model for pTET...")
+if (verbose) cat("\n")
 
 for (mutant in (2:ncol(pTET_mat))) {
-	message("Fitting mutant ", colnames(pTET_mat)[mutant])
+	if (verbose) message("Fitting mutant ", colnames(pTET_mat)[mutant])
 
 	# construct tetR_data to fit
 	ydat <- pTET_mat[, mutant] # mutant, y-axis
@@ -83,8 +121,8 @@ for (mutant in (2:ncol(pTET_mat))) {
 	anlsb1 <- try(nls(tetR_sigmoid, start=init_val, lower=lower_bound, upper=upper_bound, data=tetR_data, algorithm="port", weights=obj_w))
 	tetR_data$predict <- predict(anlsb1, interval="predict") # append prediction
 
-	message("tetR_data:")
-	print(tetR_data)
+	if (verbose) message("tetR_data:")
+	if (verbose) print(tetR_data)
 
 	# extract model coefficients
 	coefficients = coef(anlsb1)
@@ -93,13 +131,13 @@ for (mutant in (2:ncol(pTET_mat))) {
 	# save predictions
 	pTET_pred[, mutant] = tetR_data$predict
 
-	cat("\n")
+	if (verbose) cat("\n")
 }
 
 # By now, all parameter values were found and stored in the matrix pTET_parameter.
 # In the matrix pTET_parameter, rows represent parameters and columns represent mutants.
-message("pTET_parameter:")
-print(pTET_parameter)
+if (verbose) message("pTET_parameter:")
+if (verbose) print(pTET_parameter)
 
 # save the predictions
 write.table(pTET_pred, file=file.path(project_data_dir, "pTET_pred.txt"), row.names=FALSE, col.names=colnames(pTET_mat), sep="\t")
@@ -127,11 +165,11 @@ pBAD_pred <- matrix(0, nrow=nrow(pBAD_mat), ncol=ncol(pBAD_mat))
 pBAD_pred[, 1] = pBAD_mat[, 1]
 
 # fit the model and find parameters
-message("Fitting the model for pBAD...")
-cat("\n")
+if (verbose) message("Fitting the model for pBAD...")
+if (verbose) cat("\n")
 
 for (mutant in (2:ncol(pBAD_mat))) {
-	message("Fitting mutant ", colnames(pBAD_mat)[mutant])
+	if (verbose) message("Fitting mutant ", colnames(pBAD_mat)[mutant])
 
 	# construct AraC_data to fit
 	ydat <- pBAD_mat[, mutant] # mutant, y-axis
@@ -152,8 +190,8 @@ for (mutant in (2:ncol(pBAD_mat))) {
 	anlsb1 <- try(nls(AraC_sigmoid, start=init_val, lower=lower_bound, upper=upper_bound, data=AraC_data, algorithm="port", weights=obj_w))
 	AraC_data$predict <- predict(anlsb1, interval="predict") # append prediction
 
-	message("AraC_data:")
-	print(AraC_data)
+	if (verbose) message("AraC_data:")
+	if (verbose) print(AraC_data)
 
 	# extract model coefficients
 	coefficients = coef(anlsb1)
@@ -162,13 +200,13 @@ for (mutant in (2:ncol(pBAD_mat))) {
 	# save predictions
 	pBAD_pred[, mutant] = AraC_data$predict
 
-	cat("\n")
+	if (verbose) cat("\n")
 }
 
 # By now, all parameter values were found and stored in the matrix pBAD_parameter
 # In the matrix pBAD_parameter, rows represent parameters and columns represent mutants.
-message("pBAD_parameter:")
-print(pBAD_parameter)
+if (verbose) message("pBAD_parameter:")
+if (verbose) print(pBAD_parameter)
 
 # save the predictions
 write.table(pBAD_pred, file=file.path(project_data_dir, "pBAD_pred.txt"), row.names=FALSE, col.names=colnames(pBAD_mat), sep="\t")
@@ -178,7 +216,7 @@ write.table(pBAD_pred, file=file.path(project_data_dir, "pBAD_pred.txt"), row.na
 # pBAD_pTET cascade #
 #####################
 
-k_convert_gfp_to_tetR = 100
+k_convert_gfp_to_tetR = args$k_convert_gfp_to_tetR
 pTET_mut_name_list = colnames(pTET_mat)
 pBAD_mut_name_list = colnames(pBAD_mat)
 
@@ -268,13 +306,123 @@ for (cascade in (1:nrow(pBAD_pTET_mat))) {
 							 gfp_100ng_aTc)
 }
 
-message("final_mat:")
-print(final_mat)
+if (verbose) message("final_mat:")
+if (verbose) print(final_mat)
+if (verbose) cat("\n")
 
 # save the final matrix
 write.table(final_mat, file=file.path(project_data_dir, "final_mat.txt"), row.names=FALSE, sep="\t")
 
 # find correlation
-cor(final_mat[, 1], final_mat[, 4]) # 10ng/ml aTc
-cor(final_mat[, 2], final_mat[, 5]) # 0.1% ara + 10ng/ml aTc
-cor(final_mat[, 3], final_mat[, 6]) # 100ng/mL aTc
+if (verbose) message("Correlation for 10ng/ml aTc: ", cor(final_mat[, 1], final_mat[, 4]))
+if (verbose) message("Correlation for 0.1% ara + 10ng/ml aTc: ", cor(final_mat[, 2], final_mat[, 5]))
+if (verbose) message("Correlation for 100ng/mL aTc: ", cor(final_mat[, 3], final_mat[, 6]))
+if (verbose) cat("\n")
+
+
+##################
+# classification #
+##################
+
+# create empty zero matrix to populate the final parameters
+predic_mat <- matrix(0, nrow=nrow(classification_mat), ncol=8)
+colnames(predic_mat) <- c("no inducer (exp)",
+						  "0.1% ara (exp)",
+						  "50ng/ml(aTc) (exp)",
+						  "label (exp)",
+						  "no inducer (sim)",
+						  "0.1% ara (sim)",
+						  "50ng/ml(aTc) (sim)",
+						  "label (sim)")
+
+# for each cascade
+for (cascade in (1:nrow(classification_mat))) {
+	# pTET mutant
+	pTET_mut = classification_mat[cascade, 2]
+	pTET_idx = 0
+
+	for (i in 2:length(pTET_mut_name_list)) {
+		if (pTET_mut_name_list[i] == pTET_mut)
+			pTET_idx = i - 1
+	}
+
+	if (pTET_idx == 0)
+		stop(sprintf("%s not found", pTET_mut))
+
+	# pBAD mutant
+	pBAD_mut = classification_mat[cascade, 1]
+	pBAD_idx = 0
+
+	for (i in 2:length(pBAD_mut_name_list)) {
+		if (pBAD_mut_name_list[i] == pBAD_mut)
+			pBAD_idx = i - 1
+	}
+
+	if (pBAD_idx == 0)
+		stop(sprintf("%s not found", pBAD_mut))
+
+	# load previously found parameters
+	a_pBAD = pBAD_parameter[1, pBAD_idx]
+	b_pBAD = pBAD_parameter[2, pBAD_idx]
+	k_pBAD = pBAD_parameter[3, pBAD_idx]
+	n_pBAD = pBAD_parameter[4, pBAD_idx]
+
+	a_pTET = pTET_parameter[1, pTET_idx]
+	b_pTET = pTET_parameter[2, pTET_idx]
+	k_pTET = pTET_parameter[3, pTET_idx]
+	n_pTET = pTET_parameter[4, pTET_idx]
+
+	######################
+	# AraC_sigmoid model #
+	######################
+	# model to predict the TetR where there is no L-arabinose.
+	# this model is the AraC_sigmoid model but we set Lara = 0,
+	# and the output is normalized by a linear factor constant k_convert_gfp_to_tetR
+	tetR_zero_ara = (a_pBAD + b_pBAD / (1 + (araC_const / k_pBAD) ^ n_pBAD)) / k_convert_gfp_to_tetR
+
+	# model to predict the TetR where there 0.1% L-arabinose.
+	# this model is the AraC_sigmoid model but we set Lara = 0.1,
+	# and the output is normalized by a linear factor constant k_convert_gfp_to_tetR
+	tetR_0_1_ara = (a_pBAD + b_pBAD / (1 + (araC_const / ((1 + (0.1 / k_Lara) ^ n_Lara) * k_pBAD)) ^ n_pBAD)) / k_convert_gfp_to_tetR
+
+	######################
+	# tetR_sigmoid model #
+	######################
+	# model to predict gfp when there is no inducer.
+	# this model is the tetR_sigmoid model but we set aTc = 0,
+	# and we set tetR_const = tetR_zero_ara as tetR is the output of the first module (i.e. AraC_sigmoid model)
+	gfp_no_inducer = a_pTET + b_pTET / (1 + (tetR_zero_ara / k_pTET) ^ n_pTET)
+
+	# model to predict the gfp when there is 0.1% L-arabinose.
+	# this model is the tetR_sigmoid model but we set aTc = 0,
+	# and we set tetR_const = tetR_0_1_ara as tetR is the output of the first module (i.e. AraC_sigmoid model) when there is 0.1% L-arabinose,
+	gfp_0_1_Lara = a_pTET + b_pTET / (1 + (tetR_0_1_ara / k_pTET) ^ n_pTET)
+
+	# model to predict gfp when there is 50ng/ml aTc.
+	# this model is the tetR_sigmoid model but we set aTc = 50,
+	# and we set tetR_const = tetR_zero_ara as tetR is the output of the first module (i.e. AraC_sigmoid model)
+	gfp_50ng_aTc = a_pTET + b_pTET / (1 + (tetR_zero_ara / ((1 + (50 / k_aTc) ^ n_aTc) * k_pTET)) ^ n_pTET)
+
+
+	ara_fold = gfp_no_inducer / gfp_0_1_Lara
+	aTc_fold = gfp_50ng_aTc / gfp_no_inducer
+
+	predicted_label = ifelse(ara_fold > 5, "Tunable", ifelse(aTc_fold > 10, "Repressible", "Constitutive"))
+
+	# polulate final mat
+	predic_mat[cascade, ] = c(classification_mat[cascade, 3],
+							  classification_mat[cascade, 4],
+							  classification_mat[cascade, 5],
+							  toString(classification_mat[cascade, 6]),
+							  gfp_no_inducer,
+							  gfp_0_1_Lara,
+							  gfp_50ng_aTc,
+							  predicted_label)
+}
+
+if (verbose) message("predic_mat:")
+if (verbose) print(predic_mat)
+if (verbose) cat("\n")
+
+# save the final matrix
+write.table(predic_mat, file=file.path(project_data_dir, "predic_mat.txt"), row.names=FALSE, sep="\t")

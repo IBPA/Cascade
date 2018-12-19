@@ -86,33 +86,41 @@ def plot_actual_with_uncertainty(actual, pred, p_type):
 def plot_double_cascade_comparison(data, case):
 	test_cases = list(data)
 
+	# case 1
 	case_1 = '10ng/ml aTc'
-	case_2 = '0.1% ara + 10ng/ml aTc'
-	case_3 = '100ng/mL aTc'
-
 	case_1_exp = data['{} (exp)'.format(case_1)]
 	case_1_sim = data['{} (sim)'.format(case_1)]
 
-	plt.figure(case_1)
+	plt.figure(case_1, figsize=(6, 6))
 	plt.scatter(case_1_exp, case_1_sim)
 	plt.xlabel('{} (exp)'.format(case_1))
 	plt.ylabel('{} (sim)'.format(case_1))
+	plt.xlim((0,6000))
+	plt.ylim((0,6000))
 
+	# case 2
+	case_2 = '0.1% ara + 10ng/ml aTc'
 	case_2_exp = data['{} (exp)'.format(case_2)]
 	case_2_sim = data['{} (sim)'.format(case_2)]
 
-	plt.figure(case_2)
+	plt.figure(case_2, figsize=(6, 6))
 	plt.scatter(case_2_exp, case_2_sim)
 	plt.xlabel('{} (exp)'.format(case_2))
 	plt.ylabel('{} (sim)'.format(case_2))
+	plt.xlim((0,3000))
+	plt.ylim((0,3000))
 
+	# case 3
+	case_3 = '100ng/mL aTc'
 	case_3_exp = data['{} (exp)'.format(case_3)]
 	case_3_sim = data['{} (sim)'.format(case_3)]
 
-	plt.figure(case_3)
+	plt.figure(case_3, figsize=(6, 6))
 	plt.scatter(case_3_exp, case_3_sim)
 	plt.xlabel('{} (exp)'.format(case_3))
 	plt.ylabel('{} (sim)'.format(case_3))
+	plt.xlim((0,16000))
+	plt.ylim((0,16000))
 
 
 if __name__ == '__main__':
